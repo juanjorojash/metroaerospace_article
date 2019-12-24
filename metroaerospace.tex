@@ -71,16 +71,11 @@ component, formatting, style, styling, insert
 \end{IEEEkeywords}
 
 \section{Introduction}
-The concept of lean satellites was introduced in \cite{leansat} as ``a satellite that utilizes non-traditional, risk-taking development and management approaches with the aim to provide value of some kind to the customer at low-cost and without taking much time to realize the satellite mission. The satellite size is small merely as a result of seeking low-cost and fast-delivery''. 
-SOOOOOOOO (problem... change to text after is ready) 
-\begin{itemize}
-    \item Lean Satellite Projects require testing facilities and equipment that suits its philosophy.
-    \item The EPS system is the bigger cause of failure in CubeSats {\color{red}check if this can be so categorical} \cite{reliability}
-    \item The available commercial SAS solutions were developed for big satellites therefore its use in a lean satellite mission is a waste of resources. 
-    \item A leaner SAS solution is required. 
-\end{itemize}
+The concept of lean satellites was introduced in \cite{leansat} as ``a satellite that utilizes non-traditional, risk-taking development and management approaches with the aim to provide value of some kind to the customer at low-cost and without taking much time to realize the satellite mission. The satellite size is small merely as a result of seeking low-cost and fast-delivery''. Considering its definition, it is clear that a lean satellite project require testing facilities and equipment that suit its philosophy. 
 
-In this work a custom SAS for power system testing in Lean Satellite Missions is proposed and simulated. For simplicity this system will be called LeanSAS.
+It was documented in \cite{reliability} that electrical power systems (EPS) are the leading cause of failure in CubeSats; for that reason, it is important to have access to testing equipment that can emulate the conditions of power generation to be found in the chosen orbit. This equipment is known as Solar Array Simulator (SAS) and it is available commercially; however, the available solutions in the market were developed for big satellites; therefore, its use in lean satellite projects is a waste of resources.
+
+Lean satellite projects require access to a lean SAS solution. In this work a custom SAS for power system testing in lean satellite projects is proposed and simulated. From now on the proposed system will be refer to as LeanSAS.
 
 It is comprised of: (1) a buck-boost converter power stage; (2) a microcontroller, etc... A simplified block diagram is include in Figure \ref{fig:SASblockdia}
 
@@ -111,7 +106,7 @@ It is comprised of: (1) a buck-boost converter power stage; (2) a microcontrolle
 \section{Principle of operation}
 \begin{figure*}[tbh]
     \centering
-    \begin{circuitikz}[scale=0.6, transform shape, american] \draw
+    \begin{circuitikz}[scale=0.8, transform shape, american] \draw
     (-2,0)node[below]{$V_{in}(+)$}to[short, o-*](0,0)
     to[C, l_=$C_{in}$](0,-3)
     (1,0)node[nfet, anchor=B, rotate=90](mos1){}
@@ -133,13 +128,13 @@ It is comprised of: (1) a buck-boost converter power stage; (2) a microcontrolle
     to[short, -*] (6,-3)
     to[short, -o] (8,-3)
     node[above]{$V_{out}(+)$};
-    \draw[thick] (-1,1.5) -- (7,1.5)node[midway,below]{\Large buck-boost} -- (7,-4) -- (-1,-4) -- cycle;
+    \draw[thick] (-1,1.5) -- (7,1.5)node[midway,below]{\large buck-boost} -- (7,-4) -- (-1,-4) -- cycle;
     \draw[dashed, red] (mos1.G) -- ++ (0,-4) node[shape=coordinate](q3){};
     \draw[dashed, red] (mos2.G) -- ++ (0,-3.5) node[shape=coordinate](q2){};
     \draw (q3) node[buffer, anchor = out, rotate = 90](b1) {};
     \draw (q2) node[not port, anchor = out, rotate = 90](b2) {};
-    \draw[thick] (0,-4.5) -- (4,-4.5)node[midway,below]{\Large driver} -- (4,-7) -- (0,-7) -- cycle;
-    \node[draw, thick, rectangle, anchor=north west, minimum width=2cm,minimum height=1.25cm]at (6,-5) (MCU){\Large MCU};
+    \draw[thick] (0,-4.5) -- (4,-4.5)node[midway,below,align=center]{\large MOSFET\\ \large driver} -- (4,-7) -- (0,-7) -- cycle;
+    \node[draw, thick, rectangle, anchor=north west, minimum width=2cm,minimum height=1.25cm]at (6,-5) (MCU){\large MCU};
     \draw[dashed, green] (b1.in) -- ++(0,-0.4) -- ++(4,0)|- (MCU)node[midway,above]{\color{black}PWM};
     \draw[dashed, green] (b2.in) -- ++(0,-0.4);
 
