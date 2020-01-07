@@ -77,7 +77,7 @@ It was documented in \cite{reliability} that electrical power systems (EPS) are 
 
 Lean satellite projects require access to a lean SAS solution. In this work a custom SAS for power system testing in lean satellite projects is proposed and simulated. From now on the proposed system will be refer to as LeanSAS.
 
-It is comprised of: (1) a buck-boost converter power stage; (2) a microcontroller, etc... A simplified block diagram is include in Figure \ref{fig:SASblockdia}
+
 
 \begin{figure}[tbh!]
 	\centering
@@ -104,10 +104,13 @@ It is comprised of: (1) a buck-boost converter power stage; (2) a microcontrolle
 {\color{red} The equations we are going to use are taken from \cite{equations}}
 
 \section{Principle of operation}
+The LeanSAS is comprised of: (1) a buck-boost converter power stage; (2) a shunt unit; (3) a microcontroller, etc... A simplified block diagram is include in Figure \ref{fig:SASblockdia}
+
 \begin{figure*}[tbh]
     \centering
-    \begin{circuitikz}[scale=0.8, transform shape, american] \draw
-    (-2,0)node[below]{$V_{in}(+)$}to[short, o-*](0,0)
+    \begin{circuitikz}[scale=0.75, transform shape, american voltages] 
+    \draw[thick,gray,dashed] (-1,1.5) -- (7,1.5)node[midway,below]{\large buck-boost} -- (7,-4) -- (-1,-4) -- cycle;
+    \draw (-2,0)node[below]{$V_{in}(+)$}to[short, o-*](0,0)
     to[C, l_=$C_{in}$](0,-3)
     (1,0)node[nfet, anchor=B, rotate=90](mos1){}
     (mos1.B)node[above]{$Q_1$}--(2,0)
@@ -117,7 +120,7 @@ It is comprised of: (1) a buck-boost converter power stage; (2) a microcontrolle
     (2,0)to[C, l=$C_{1}$, *-*](4,0)
     to[L, l=$L_{2}$, *-*](6,0)
     to[C,l_=$C_2$](6,-3)
-    (6,0)to[short, *-o](8,0)node[below]{$V_{out}(-)$}
+    (6,0)to[short](7.5,0)node[shape=coordinate](cop){}
     (4,-1.5)node[nfet, anchor=B](mos2){}
     (mos2.B)node[right]{$Q_2$}--(4,-3)
     (mos2.D)--(4,0)
@@ -126,24 +129,39 @@ It is comprised of: (1) a buck-boost converter power stage; (2) a microcontrolle
     to[short, -*] (2,-3)
     to[short, -*] (4,-3)
     to[short, -*] (6,-3)
-    to[short, -o] (8,-3)
-    node[above]{$V_{out}(+)$};
-    \draw[thick] (-1,1.5) -- (7,1.5)node[midway,below]{\large buck-boost} -- (7,-4) -- (-1,-4) -- cycle;
-    \draw[dashed, red] (mos1.G) -- ++ (0,-4) node[shape=coordinate](q3){};
-    \draw[dashed, red] (mos2.G) -- ++ (0,-3.5) node[shape=coordinate](q2){};
-    \draw (q3) node[buffer, anchor = out, rotate = 90](b1) {};
-    \draw (q2) node[not port, anchor = out, rotate = 90](b2) {};
-    \draw[thick] (0,-4.5) -- (4,-4.5)node[midway,below,align=center]{\large MOSFET\\ \large driver} -- (4,-7) -- (0,-7) -- cycle;
-    \node[draw, thick, rectangle, anchor=north west, minimum width=2cm,minimum height=1.25cm]at (6,-5) (MCU){\large MCU};
-    \draw[dashed, green] (b1.in) -- ++(0,-0.4) -- ++(4,0)|- (MCU)node[midway,above]{\color{black}PWM};
-    \draw[dashed, green] (b2.in) -- ++(0,-0.4);
-
-    %\draw[thick] (6,-4.5) rectangle (8,-7) node[midway]{\Large MCU};
+    to[short] (7.5,-3)
+    node[shape=coordinate](con){};
+    \draw[red] (mos1.G) -- ++ (0,-3.8) node[shape=coordinate](q1){};
+    \draw[red] (mos2.G) -- ++ (0,-3.3) node[shape=coordinate](q2){};
+    \draw (q1) node[buffer, anchor = out, rotate = 90, scale = 0.8](b1) {};
+    \draw (q2) node[not port, anchor = out, rotate = 90, scale = 0.8](b2) {};
+    %MOS DRIVER
+    \draw[thick,gray,dashed] (0,-4.5) -- (4,-4.5)node[midway,below,align=center]{\large MOSFET\\ \large driver} -- (4,-6.5) -- (0,-6.5) -- cycle;
+    %MCU
+    \node[draw, thick, rectangle, anchor=north west, minimum width=2cm,minimum height=1.25cm]at (5,-5) (MCU){\large MCU};
+    \draw[red] (b1.in) -- ++(0,-0.3) -- ++(3.5,0)|- (MCU);
+    \draw[red] (b2.in) -- ++(0,-0.3);
+    %SENSOR
+    \draw[thick, gray,dashed] (7.5,1.5) -- (9,1.5)node[midway,below,align=center]{\large current\\ \large sensor} -- (9,-4) -- (7.5,-4) -- cycle;
+    \draw(con)to[iloop, mirror, name=Is,i<=$i_{c}$] ++(1.5,0) to[short,-*] ++(2,0) node[shape=coordinate](shn){};
+    \draw[blue] (Is.i) -- ++ (0,-1) -| (MCU); 
+    %SHUNT
+    \draw[thick,gray,dashed] (9.5,1.5) -- (12,1.5)node[midway,below,align=center]{\large shunt\\ \large unit} -- (12,-4) -- (9.5,-4) -- cycle;
+    \draw(cop)to[short,-*] ++(3.5,0) node[shape=coordinate](shp){} to [R, l=$R_{sh}$] ++(0,-1.4) node[nfet, anchor=D](mos3){}
+    (mos3.B)node[right]{$Q_3$}
+    (mos3.B) -- (shn);
+    \draw[red] (mos3.G) |- (MCU);
+    %%FILTER
+    \draw[thick,gray,dashed] (12.5,1.5) -- (15,1.5)node[midway,below,align=center]{\large LC filter} -- (15,-4) -- (12.5,-4) -- cycle;
+    \draw(shp) -- ++ (1.2,0) to [L, l=$L_{ou}$, -*] ++ (2.2,0) node[shape=coordinate](fip){};
+    \draw(shn) to [short, -*] ++ (3.4,0)node[shape=coordinate](fin){};
+    \draw(fip) to [C, l_=$C_{ou}$] (fin);
+    %%OUTPUT SENSOR
+    \draw[thick,gray,dashed] (15.5,1.5) -- (18.5,1.5)node[midway,below,align=center]{\large output\\ \large sensors} -- (18.5,-4) -- (15.5,-4) -- cycle;    
     \end{circuitikz}
     \caption{Zeta converter topology}
     \label{f_zeta}
 \end{figure*}
-
 
 \section{Materials and methods}
 To 
