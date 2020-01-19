@@ -1,0 +1,60 @@
+\makeatletter
+\pgfplotsset{
+    /tikz/max node/.style={
+        anchor=south
+    },
+    /tikz/min node/.style={
+        anchor=north
+    },
+    mark min/.style={
+        point meta rel=per plot,
+        visualization depends on={x \as \xvalue},
+        scatter/@pre marker code/.code={%
+            \ifx\pgfplotspointmeta\pgfplots@metamin
+                \def\markopts{}%
+                \node [min node,font=\scriptsize] {
+                    \pgfmathprintnumber[fixed]{\xvalue},%
+                    \pgfmathprintnumber[fixed]{\pgfplotspointmeta}
+                };
+            \else
+                \def\markopts{mark=none}
+            \fi
+            \expandafter\scope\expandafter[\markopts,every node near coord/.style=green]
+        },%
+        scatter/@post marker code/.code={%
+            \endscope
+        },
+        scatter,
+    },
+    mark max/.style={
+        point meta rel=per plot,
+        visualization depends on={x \as \xvalue},
+        scatter/@pre marker code/.code={%
+        \ifx\pgfplotspointmeta\pgfplots@metamax
+            \def\markopts{}%
+            \node [max node,font=\scriptsize] {
+                (\pgfmathprintnumber[fixed]{\xvalue},%
+                \pgfmathprintnumber[fixed]{\pgfplotspointmeta})
+            };
+        \else
+            \def\markopts{mark=none}
+        \fi
+            \expandafter\scope\expandafter[\markopts]
+        },%
+        scatter/@post marker code/.code={%
+            \endscope
+        },
+        scatter
+    }
+}
+\makeatother
+
+\makeatletter
+  \newcommand\transformxdimension[1]{
+    \pgfmathparse{((#1/\pgfplots@x@veclength)+\pgfplots@data@scale@trafo@SHIFT@x)/10^\pgfplots@data@scale@trafo@EXPONENT@x}
+  }
+
+  \newcommand\transformydimension[1]{
+    \pgfmathparse{((#1/\pgfplots@y@veclength)+\pgfplots@data@scale@trafo@SHIFT@y)/10^\pgfplots@data@scale@trafo@EXPONENT@y}
+  }
+\makeatother
