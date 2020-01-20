@@ -8,6 +8,7 @@
 \usepackage{textcomp}
 \usepackage{xcolor}
 \usepackage{siunitx}
+\usepackage{amsmath,bm}
 \input{tikz_preamble.tex}
 \input{tikz_styles.tex}
 \input{plot_tricks.tex}
@@ -75,38 +76,44 @@ component, formatting, style, styling, insert
 \section{Introduction}
 The concept of lean satellites was introduced in \cite{leansat} as ``a satellite that utilizes non-traditional, risk-taking development and management approaches with the aim to provide value of some kind to the customer at low-cost and without taking much time to realize the satellite mission. The satellite size is small merely as a result of seeking low-cost and fast-delivery''. Considering its definition, it is clear that a lean satellite project require testing facilities and equipment that suit its philosophy. 
 
-It was documented in \cite{reliability} that electrical power systems (EPS) are the leading cause of failure in CubeSats; for that reason, it is important to have access to testing equipment that can emulate the conditions of power generation to be found in the chosen orbit. This equipment is known as Solar Array Simulator (SAS) and it is available commercially; however, the available solutions in the market were developed for high power; therefore, its use in lean satellite projects is a waste of resources.
+It was documented in \cite{reliability} that electrical power systems (EPS) are the leading cause of failure in CubeSats; for that reason, it is important to have access to testing equipment that can emulate the conditions of power generation to be found in the chosen orbit. This equipment is known as Solar Array Simulator (SAS) and it is available commercially; however, the available solutions in the market were developed for big satellites; therefore, its use in lean satellite projects is a waste of resources.
 
 Lean satellite projects require access to a lean SAS solution. In this work a custom SAS for power system testing in lean satellite projects is proposed and simulated. From now on the proposed system will be refer to as LeanSAS.
-
-
-
-\begin{figure}[tbh!]
-	\centering
-	\begin{tikzpicture}[scale=1, transform shape]
-	\path (0,0) rectangle (7,4);
-	\node at (0.5,2)[comp](SA){\bf \scriptsize CHANGE};
-	\node [comp, right of=SA, node distance=6cm](LO){\bf \scriptsize CHANGE};
-	\node [comp, above of=SA, xshift=4.75cm, node distance=1.5cm](PD){\bf \scriptsize CHANGE};
-	\node [comp, right of=SA, node distance=3cm, yshift=-0.7cm](BA){\bf \scriptsize CHANGE};
-	\node [comp, right of=SA, node distance=3cm, yshift=0.7cm](BDC){\bf \scriptsize CHANGE};
-	\draw [rconnect] (SA) |- ++(3,1.5);
-	\draw [rconnect] (SA)++(3,1.5) -- (PD);
-	\draw [connect] (SA) -- ++(0,-1.5) -| (LO);
-	\draw [rconnect] (PD) -| (LO);
-	\draw [lconnect] (BDC) -- ++(0,0.8);			
-	\draw [connect] (BA) -- ++(0,-0.8);
-	\draw [connect] (BA) -- (BDC);
-	\end{tikzpicture}
-	\caption{Block diagram of the LeanSAS} 
-	\label{fig:SASblockdia}
-\end{figure}
-
 
 {\color{red} The equations we are going to use are taken from \cite{equations}}
 
 \section{Principle of operation}
 A simplified block diagram of the LeanSAS is included in Figure \ref{fig:LeanSAS_block}. It is comprised of: a buck boost converter; a shunt unit; an output filter; several sensors; and a microcontroller unit (MCU).
+
+The MCU uses a lookup table to define the operating point of the converter and the shunt unit, this table is recalculated every time the user send four required parameters using serial communication: open circuit voltage ($V_{oc}$); short circuit current ($I_{sc}$);maximum power point voltage ($V_{mp}$) and; maximum power point current ($I_{mp}$). Once the four parameters are received by the MCU, a set of equations \cite{equations} are calculated to determine the value of the voltage ($V$) at each point of the lookup table. The lookup table has 1024 values and its index ($n$) corresponds to each current value ($I$) according to expression: $I = n \cdot (I_{sc} / 1023)$. 
+
+The equations that are applied to the four parameters are as follows:
+\begin{equation}
+    R_s = \left(V_{oc} - V_{mp}\right) / I_{mp},
+\end{equation}
+\begin{equation}
+    a = \bm{(}V_{mp} ( 1 + R_s I_{sc}/ V_{oc}) + R_s ( I_{mp} - I_{sc})\bm{)} / V_{oc},
+\end{equation}
+\begin{equation}
+    N = \ln(2-2^{a}) / \ln(I_{mp}/I_{sc}),
+\end{equation}
+\begin{multline}
+    V = \bm{(} V_{oc} \ln ( 2 - (I/I_{sc})^N ) / \ln(2)  - R_s (I - I_{sc})\bm{)} / \\ (1 + R_s I_{sc}/V_{oc}),
+\end{multline}
+
+\subsection{Converter operation}
+The converter operates in constant current mode at all times using a digital PI controller implemented in the MCU. A sensor located in the output measure the voltage ($v_o$) and use the following logic
+
+
+However its operation can be divided in two ranges, from 0 to $V_{mp}$ the converter follows the lookup table.
+
+A current sensor located at the output of the converter sense the current ($i_c$) and convert it into an approximate index ($n_a$) as follows:
+\begin{equation}
+    n_a = (1023 \cdot i_c) / I_{sc}  
+\end{equation}
+
+
+The MCU is constantly controlling the converter from short circuit to $V_{oc}$ using 
 
 
 
@@ -114,7 +121,7 @@ A simplified block diagram of the LeanSAS is included in Figure \ref{fig:LeanSAS
 \begin{figure*}[tbh]
     \centering
     \begin{circuitikz}[scale=0.75, transform shape, american voltages] 
-    \draw[thick,gray,dashed] (-1,1.5) -- (7,1.5)node[midway,below]{\large buck-boost} -- (7,-4) -- (-1,-4) -- cycle;
+    \draw[thick,gray,dashed] (-1,1.5) -- (7,1.5)node[midway,below,align=center]{\large buck-boost converter} -- (7,-4) -- (-1,-4) -- cycle;
     \draw (-2,0)node[below]{$V_{in}(+)$}to[short, o-*](0,0)
     to[C, l_=$C_{in}$](0,-3)
     (1,0)node[nfet, anchor=B, rotate=90](mos1){}
@@ -164,7 +171,7 @@ A simplified block diagram of the LeanSAS is included in Figure \ref{fig:LeanSAS
     %%OUTPUT SENSOR
     \draw[thick,gray,dashed] (15.5,1.5) -- (18.5,1.5)node[midway,below,align=center]{\large output\\ \large sensors} -- (18.5,-4) -- (15.5,-4) -- cycle;   
     \draw(fin) -- ++ (1,0) to[iloop, mirror, name=Io,i<=$i_{o}$] ++(2,0) to[short,-o]++(2,0)node[above]{$V_{out}(-)$};
-    \draw(fip) to[short,-*] ++(2.5,0)node[above,black]{$V_{o}$}node[shape=coordinate](vou){} to[short,-o]++(2.5,0)node[below]{$V_{out}(+)$};
+    \draw(fip) to[short,-*] ++(2.5,0)node[above,black]{$v_{o}$}node[shape=coordinate](vou){} to[short,-o]++(2.5,0)node[below]{$V_{out}(+)$};
     \draw[blue] (Io.i) -- ++ (0,-1) |- (MCU.east); 
     \draw[green](vou)|-($(MCU.south east)!0.5!(MCU.east)$);
     \end{circuitikz}
@@ -200,36 +207,37 @@ A simplified block diagram of the LeanSAS is included in Figure \ref{fig:LeanSAS
             %legend style={at={(1,0.7)},anchor=west}, % Put the legend below the plot
             smooth,
             ]
-            \addplot [name path=VI, mark=none, color=black,forget plot]       
-            table[x=V0,y=I0,col sep=comma] {./data/angle.csv};
-            \addplot [name path=convop1, mark=none, dashed, color=blue,forget plot, thick, restrict x to domain=0:4.82]       
-            table[x=V0,y=I0,col sep=comma] {./data/angle.csv};
-            \addplot [name path=convop2, mark=none, dashed, color=blue,forget plot, thick, domain=4.82:5.1] {1.51};
-            \addplot [name path=convop3, mark=none, dashed, color=blue,forget plot, thick] coordinates {(5.1,1.51) (5.66,0)};
-            % table[x=V0,y=I0,col sep=comma] {./data/angle.csv}\closedcycle;
-            %\addlegendentry{LOAD=\SI{4}{\watt}}
-            \path[name path=axis] (axis cs:0,0) -- (axis cs:6,0);
+            \addplot [name path=VI, mark=none, color=black,forget plot, thick]       
+            table[x=V,y=I,col sep=comma] {./data/data.csv};
+            \addplot [name path=convop, mark=none, dashed, color=blue,forget plot, thick, restrict x to domain=0:5.38]       
+            table[x=VC,y=I,col sep=comma] {./data/data.csv};
+            % \addplot [name path=convop2, mark=none, dashed, color=blue,forget plot, thick, domain=4.82:5.1] {1.51};
+            % \addplot [name path=convop3, mark=none, dashed, color=blue,forget plot, thick] coordinates {(5.1,1.51) (5.66,0)};
+            \path[name path=axis] (axis cs:0,0) -- (axis cs:5.38,0);
             %%%%%%%%%%%%%%%%%%
-            \addplot [thick, color=red, fill=red, fill opacity=0.3]
-            fill between[of=convop2 and VI,soft clip={domain=4.81:5.1}];
-            \addplot [thick, color=red, fill=red, fill opacity=0.3]
-            fill between[of=convop3 and VI,soft clip={domain=5.099:5.38}];
-            %%%%%%%%%%%%%%%%%
-            % \addplot [name path=SC, green, domain=0:2] {1.53};
-            % %\addlegendentry{OCV=\SI{4.0}{\volt}}
-            % \fill [name intersections={of=VI and SC, name=int}](int-1) circle (2pt) coordinate (ISC);
-            %%%%%%%%%%%%%%%%%
+            \addplot [thick, color=red, fill=red, fill opacity=0.5]
+            fill between[of=convop and VI,soft clip={domain=4.81:5.379}];
+            \addplot [thick, color=black, fill=black, fill opacity=0.1]
+            fill between[of=VI and axis];
+            % \addplot [thick, color=red, fill=red, fill opacity=0.3]
+            % fill between[of=convop3 and VI,soft clip={domain=5.099:5.38}];
             %%%%%%%%%%%%%%%%%%
             \coordinate (ISC) at (axis cs:0,1.5588);
             \coordinate (MP) at (axis cs:4.82,1.51);
             \coordinate (VOC) at (axis cs:5.38,0);
-            \draw[rconnect] (axis cs:3,0.7) -- (axis cs:5.25,0.8);
+            \draw[rconnect, color=red] (axis cs:3,0.7) -- (axis cs:5.25,0.7);
+            \draw[rconnect, color=blue] (axis cs:3,1.2) -- (axis cs:5.15,1.2);
+            \draw[rconnect, color=black] (axis cs:3,0.2) -- (axis cs:5.3,0.2);
             \coordinate (SHU) at (axis cs:3,0.7);
+            \coordinate (CON) at (axis cs:3,1.2);
+            \coordinate (OVA) at (axis cs:3,0.2);
         \end{axis}
         \fill (ISC) circle (2pt)node[left]{$I_{sc}$};
         \fill (MP) circle (2pt)node[above]{($V_{mp}$, $I_{mp}$)};
         \fill (VOC) circle (2pt)node[below]{$V_{oc}$};
-        \draw (SHU) node[left,align=center]{shunt \\ unit \\ operation \\area};
+        \draw (SHU) node[left,align=center, color=red]{\small shunt unit \\ \small operation area};
+        \draw (CON) node[left,align=center, color=blue]{\small converter \\ \small operation line};
+        \draw (OVA) node[left,align=center, color=black]{\small overall \\ \small operation line};
     \end{tikzpicture}
 \end{figure}
 
