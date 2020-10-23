@@ -1,0 +1,63 @@
+\begin{figure}[tbh]
+    \centering
+    \begin{tikzpicture}
+        \begin{axis}[
+            %yshift=-1cm,
+            width= \linewidth,
+            height= 0.7\linewidth,
+            %grid=major, % Display a grid
+            %grid style={dashed,gray!30}, % Set the style
+            %every axis plot/.append style={thick},
+            ymin=0, ymax=2,
+            xmin=0, xmax=6,
+            axis x line=bottom,
+            axis y line=left,
+            axis line style={-},
+            xtick=\empty,
+            xticklabels=\empty,
+            ytick=\empty,
+            yticklabels=\empty,
+            xlabel=Voltage, % Set the labels
+            ylabel=Current,
+            x unit=V, 
+            y unit=A,
+            %legend pos=north east,
+            %legend style={cells={anchor=west}}
+            %legend style={at={(1,0.7)},anchor=west}, % Put the legend below the plot
+            smooth,
+            ]
+            \addplot [name path=VI, mark=none, color=black,forget plot, thick]       
+            table[x=V,y=I,col sep=comma] {./data/data.csv};
+            \addplot [name path=convop, mark=none, dashed, color=blue,forget plot, thick, restrict x to domain=0:5.38]       
+            table[x=VC,y=I,col sep=comma] {./data/data.csv};
+            % \addplot [name path=convop2, mark=none, dashed, color=blue,forget plot, thick, domain=4.82:5.1] {1.51};
+            % \addplot [name path=convop3, mark=none, dashed, color=blue,forget plot, thick] coordinates {(5.1,1.51) (5.66,0)};
+            \path[name path=axis] (axis cs:0,0) -- (axis cs:5.38,0);
+            %%%%%%%%%%%%%%%%%%
+            \addplot [thick, color=red, fill=red, fill opacity=0.5]
+            fill between[of=convop and VI,soft clip={domain=4.81:5.379}];
+            \addplot [thick, color=black, fill=black, fill opacity=0.1]
+            fill between[of=VI and axis];
+            % \addplot [thick, color=red, fill=red, fill opacity=0.3]
+            % fill between[of=convop3 and VI,soft clip={domain=5.099:5.38}];
+            %%%%%%%%%%%%%%%%%%
+            \coordinate (ISC) at (axis cs:0,1.5588);
+            \coordinate (MP) at (axis cs:4.82,1.51);
+            \coordinate (VOC) at (axis cs:5.38,0);
+            \draw[rconnect, color=red] (axis cs:3,0.7) -- (axis cs:5.25,0.7);
+            \draw[rconnect, color=blue] (axis cs:3,1.2) -- (axis cs:5.15,1.2);
+            \draw[rconnect, color=black] (axis cs:3,0.2) -- (axis cs:5.3,0.2);
+            \coordinate (SHU) at (axis cs:3,0.7);
+            \coordinate (CON) at (axis cs:3,1.2);
+            \coordinate (OVA) at (axis cs:3,0.2);
+        \end{axis}
+        \fill (ISC) circle (2pt)node[left]{$I_{sc}$};
+        \fill (MP) circle (2pt)node[above]{($V_{mp}$, $I_{mp}$)};
+        \fill (VOC) circle (2pt)node[below]{$V_{oc}$};
+        \draw (SHU) node[left,align=center, color=red]{\small shunt unit \\ \small operation area};
+        \draw (CON) node[left,align=center, color=blue]{\small converter \\ \small operation line};
+        \draw (OVA) node[left,align=center, color=black]{\small overall \\ \small operation line};
+    \end{tikzpicture}
+    \caption{Operation details}
+    \label{plot:operation}
+\end{figure}

@@ -2,13 +2,14 @@
 \IEEEoverridecommandlockouts
 % The preceding line is only needed to identify funding in the first footnote. If that is unneeded, please comment it out.
 \usepackage{cite}
-\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{amsmath,amssymb,amsfonts,bm}
+\usepackage{algorithm}
 \usepackage{algorithmic}
 \usepackage{graphicx}
 \usepackage{textcomp}
 \usepackage{xcolor}
 \usepackage{siunitx}
-\usepackage{amsmath,bm}
+
 \input{tikz_preamble.tex}
 \input{tikz_styles.tex}
 \input{plot_tricks.tex}
@@ -74,6 +75,12 @@ component, formatting, style, styling, insert
 \end{IEEEkeywords}
 
 \section{Introduction}
+{\color{red}The concept of lean satellites was introduced by the IAA study group 4.18, as "a satellite that utilizes non-traditional, risk-taking development and management approaches with the aim to provide value of some kind to the customer at low-cost and without taking much time to realize the satellite mission". Considering its definition, it is clear that a lean satellite project require testing facilities and equipment that suit its philosophy.
+
+Electrical power systems (EPS) are the leading cause of failure in CubeSats; for that reason, it is important to have access to testing equipment that can emulate the conditions of power generation to be found in the chosen orbit. This equipment is known as Solar Array Simulator (SAS) and it is available commercially; however, the available solutions in the market were developed for big satellites; therefore, its use in lean satellite projects is a waste of resources. Lean satellite projects require access to a custom and lean SAS solution.
+
+At SETECLab in Costa Rica we already started our open-hardware, open-source, lean power instrumentation project. The current projects are: the LeanSAS and the CellTester. In this presentation we will explore some details of the LeanSAS design and discuss its applications.}
+
 The concept of lean satellites was introduced in \cite{leansat} as ``a satellite that utilizes non-traditional, risk-taking development and management approaches with the aim to provide value of some kind to the customer at low-cost and without taking much time to realize the satellite mission. The satellite size is small merely as a result of seeking low-cost and fast-delivery''. Considering its definition, it is clear that a lean satellite project require testing facilities and equipment that suit its philosophy. 
 
 It was documented in \cite{reliability} that electrical power systems (EPS) are the leading cause of failure in CubeSats; for that reason, it is important to have access to testing equipment that can emulate the conditions of power generation to be found in the chosen orbit. This equipment is known as Solar Array Simulator (SAS) and it is available commercially; however, the available solutions in the market were developed for big satellites; therefore, its use in lean satellite projects is a waste of resources.
@@ -102,10 +109,13 @@ The equations that are applied to the four parameters are as follows:
 \end{multline}
 
 \subsection{Converter operation}
-The converter operates in constant current mode at all times using a digital PI controller implemented in the MCU. A sensor located in the output measure the voltage ($v_o$) and use the following logic
+The converter operates in constant current mode at all times using a digital PI controller implemented in the MCU. A sensor located in the output measure the voltage ($v_o$) and then the MCU execute Algorithm \ref{alg:conv}. The current value ($cc$) obtained in this process is then used by the PI controller as setpoint for the converter current. This algorithm maintain the converter current above certain level even when there is no load, this prevents the converter from entering into discontinuous conduction mode. 
+
+\subsection{Shun unit operation}
+The shunt unit only operates when the $v_o$ is bigger than $V_{mp}$, in that area the shunt unit will dissipate the difference between the power needed by the load and the power given by the converter. Its area of operation is shown in Fig. \ref{plot:operation}. 
+The MCU controls the duty cycle of the shunt unit MOSFET to achieve the required current value according to the lookup table, this is described in Algorithm 
 
 
-However its operation can be divided in two ranges, from 0 to $V_{mp}$ the converter follows the lookup table.
 
 A current sensor located at the output of the converter sense the current ($i_c$) and convert it into an approximate index ($n_a$) as follows:
 \begin{equation}
@@ -113,134 +123,41 @@ A current sensor located at the output of the converter sense the current ($i_c$
 \end{equation}
 
 
+\begin{algorithm}
+\caption{Set constant current for converter}
+\label{alg:conv}
+\begin{algorithmic}
+\REQUIRE a measure of $v_o$
+\STATE $off \leftarrow (V_{oc} - V_{mp})/3$
+\IF{$v_o <= V_{mp}$}
+\STATE $n \leftarrow 1022$
+\WHILE{$v_o > V[n]$}
+\STATE $n \leftarrow n - 1$
+\ENDWHILE
+\STATE $n_a = n + ( v_o - V[n] ) \cdot (1 / (V[n+1] - V[n]))$
+\STATE $cc = n_a \cdot (I_{sc}/1023)$ 
+\ELSIF{$v_o > V_{mp}$ \AND $v_o < (V_{mp} + off)$}
+\STATE $cc = I_{mp}$
+\ELSE
+\STATE $n \leftarrow 0$
+\WHILE{$(v_o - off) < V[n]$}
+\STATE $n \leftarrow n + 1$
+\ENDWHILE
+\STATE $n_a = n + ((v_o - off) - V[n-1]) \cdot (1 / (V[n] - V[n-1]))$
+\STATE $cc = n_a \cdot (I_{sc}/1023)$ 
+\ENDIF
+\RETURN $cc$
+\end{algorithmic}
+\end{algorithm}
+
 The MCU is constantly controlling the converter from short circuit to $V_{oc}$ using 
 
 
 
 
-\begin{figure*}[tbh]
-    \centering
-    \begin{circuitikz}[scale=0.75, transform shape, american voltages] 
-    \draw[thick,gray,dashed] (-1,1.5) -- (7,1.5)node[midway,below,align=center]{\large buck-boost converter} -- (7,-4) -- (-1,-4) -- cycle;
-    \draw (-2,0)node[below]{$V_{in}(+)$}to[short, o-*](0,0)
-    to[C, l_=$C_{in}$](0,-3)
-    (1,0)node[nfet, anchor=B, rotate=90](mos1){}
-    (mos1.B)node[above]{$Q_1$}--(2,0)
-    (mos1.D)--(0,0)
-    %(mos1.G)node[below]{$x$}
-    (2,0)to[L, l_=$L_{1}$](2,-3)
-    (2,0)to[C, l=$C_{1}$, *-*](4,0)
-    to[L, l=$L_{2}$, *-*](6,0)
-    to[C,l_=$C_2$](6,-3)
-    (6,0)to[short](7.5,0)node[shape=coordinate](cop){}
-    (4,-1.5)node[nfet, anchor=B](mos2){}
-    (mos2.B)node[right]{$Q_2$}--(4,-3)
-    (mos2.D)--(4,0)
-    %(mos2.G)node[left]{$\bar{x}$}
-    (-2,-3)node[above]{$V_{in}(-)$}to[short, o-*](0,-3)
-    to[short, -*] (2,-3)
-    to[short, -*] (4,-3)
-    to[short, -*] (6,-3)
-    to[short] (7.5,-3)
-    node[shape=coordinate](con){};
-    \draw[red] (mos1.G) -- ++ (0,-3.8) node[shape=coordinate](q1){};
-    \draw[red] (mos2.G) -- ++ (0,-3.3) node[shape=coordinate](q2){};
-    \draw (q1) node[buffer, anchor = out, rotate = 90, scale = 0.8](b1) {};
-    \draw (q2) node[not port, anchor = out, rotate = 90, scale = 0.8](b2) {};
-    %MOS DRIVER
-    \draw[thick,gray,dashed] (0,-4.5) -- (4,-4.5)node[midway,below,align=center]{\large MOSFET\\ \large driver} -- (4,-6.5) -- (0,-6.5) -- cycle;
-    %MCU
-    \node[draw, thick, rectangle, anchor=north west, minimum width=2cm,minimum height=1.25cm]at (7,-5) (MCU){\large MCU};
-    \draw[red] (b1.in) -- ++(0,-0.3) -- ++(3.5,0)|- (MCU);
-    \draw[red] (b2.in) -- ++(0,-0.3);
-    %SENSOR
-    \draw[thick, gray,dashed] (7.5,1.5) -- (9,1.5)node[midway,below,align=center]{\large mid\\ \large stage\\ \large sensor} -- (9,-4) -- (7.5,-4) -- cycle;
-    \draw(con)to[iloop, mirror, name=Is,i<=$i_{c}$] ++(1.5,0) to[short,-*] ++(2,0) node[shape=coordinate](shn){};
-    \draw[blue] (Is.i) -- ++ (0,-1) -| (MCU); 
-    %SHUNT
-    \draw[thick,gray,dashed] (9.5,1.5) -- (12,1.5)node[midway,below,align=center]{\large shunt\\ \large unit} -- (12,-4) -- (9.5,-4) -- cycle;
-    \draw(cop)to[short,-*] ++(3.5,0) node[shape=coordinate](shp){} to [R, l=$R_{sh}$] ++(0,-1.4) node[nfet, anchor=D](mos3){}
-    (mos3.B)node[right]{$Q_3$}
-    (mos3.B) -- (shn);
-    \draw[red] (mos3.G) |- ($(MCU.north east)!0.5!(MCU.east)$);
-    %%FILTER
-    \draw[thick,gray,dashed] (12.5,1.5) -- (15,1.5)node[midway,below,align=center]{\large output filter} -- (15,-4) -- (12.5,-4) -- cycle;
-    \draw(shp) -- ++ (1.2,0) to [L, l=$L_{ou}$, -*] ++ (2.2,0) node[shape=coordinate](fip){};
-    \draw(shn) to [short, -*] ++ (3.4,0)node[shape=coordinate](fin){};
-    \draw(fip) to [C, l_=$C_{ou}$] (fin);
-    %%OUTPUT SENSOR
-    \draw[thick,gray,dashed] (15.5,1.5) -- (18.5,1.5)node[midway,below,align=center]{\large output\\ \large sensors} -- (18.5,-4) -- (15.5,-4) -- cycle;   
-    \draw(fin) -- ++ (1,0) to[iloop, mirror, name=Io,i<=$i_{o}$] ++(2,0) to[short,-o]++(2,0)node[above]{$V_{out}(-)$};
-    \draw(fip) to[short,-*] ++(2.5,0)node[above,black]{$v_{o}$}node[shape=coordinate](vou){} to[short,-o]++(2.5,0)node[below]{$V_{out}(+)$};
-    \draw[blue] (Io.i) -- ++ (0,-1) |- (MCU.east); 
-    \draw[green](vou)|-($(MCU.south east)!0.5!(MCU.east)$);
-    \end{circuitikz}
-    \caption{LeanSAS block diagram}
-    \label{fig:LeanSAS_block}
-\end{figure*}
+\input{figures/block.tex}
 
-\begin{figure}[tbh]
-    \centering
-    \begin{tikzpicture}
-        \begin{axis}[
-            %yshift=-1cm,
-            width= \linewidth,
-            height= 0.7\linewidth,
-            %grid=major, % Display a grid
-            %grid style={dashed,gray!30}, % Set the style
-            %every axis plot/.append style={thick},
-            ymin=0, ymax=2,
-            xmin=0, xmax=6,
-            axis x line=bottom,
-            axis y line=left,
-            axis line style={-},
-            xtick=\empty,
-            xticklabels=\empty,
-            ytick=\empty,
-            yticklabels=\empty,
-            xlabel=Voltage, % Set the labels
-            ylabel=Current,
-            x unit=V, 
-            y unit=A,
-            %legend pos=north east,
-            %legend style={cells={anchor=west}}
-            %legend style={at={(1,0.7)},anchor=west}, % Put the legend below the plot
-            smooth,
-            ]
-            \addplot [name path=VI, mark=none, color=black,forget plot, thick]       
-            table[x=V,y=I,col sep=comma] {./data/data.csv};
-            \addplot [name path=convop, mark=none, dashed, color=blue,forget plot, thick, restrict x to domain=0:5.38]       
-            table[x=VC,y=I,col sep=comma] {./data/data.csv};
-            % \addplot [name path=convop2, mark=none, dashed, color=blue,forget plot, thick, domain=4.82:5.1] {1.51};
-            % \addplot [name path=convop3, mark=none, dashed, color=blue,forget plot, thick] coordinates {(5.1,1.51) (5.66,0)};
-            \path[name path=axis] (axis cs:0,0) -- (axis cs:5.38,0);
-            %%%%%%%%%%%%%%%%%%
-            \addplot [thick, color=red, fill=red, fill opacity=0.5]
-            fill between[of=convop and VI,soft clip={domain=4.81:5.379}];
-            \addplot [thick, color=black, fill=black, fill opacity=0.1]
-            fill between[of=VI and axis];
-            % \addplot [thick, color=red, fill=red, fill opacity=0.3]
-            % fill between[of=convop3 and VI,soft clip={domain=5.099:5.38}];
-            %%%%%%%%%%%%%%%%%%
-            \coordinate (ISC) at (axis cs:0,1.5588);
-            \coordinate (MP) at (axis cs:4.82,1.51);
-            \coordinate (VOC) at (axis cs:5.38,0);
-            \draw[rconnect, color=red] (axis cs:3,0.7) -- (axis cs:5.25,0.7);
-            \draw[rconnect, color=blue] (axis cs:3,1.2) -- (axis cs:5.15,1.2);
-            \draw[rconnect, color=black] (axis cs:3,0.2) -- (axis cs:5.3,0.2);
-            \coordinate (SHU) at (axis cs:3,0.7);
-            \coordinate (CON) at (axis cs:3,1.2);
-            \coordinate (OVA) at (axis cs:3,0.2);
-        \end{axis}
-        \fill (ISC) circle (2pt)node[left]{$I_{sc}$};
-        \fill (MP) circle (2pt)node[above]{($V_{mp}$, $I_{mp}$)};
-        \fill (VOC) circle (2pt)node[below]{$V_{oc}$};
-        \draw (SHU) node[left,align=center, color=red]{\small shunt unit \\ \small operation area};
-        \draw (CON) node[left,align=center, color=blue]{\small converter \\ \small operation line};
-        \draw (OVA) node[left,align=center, color=black]{\small overall \\ \small operation line};
-    \end{tikzpicture}
-\end{figure}
-
+\input{figures/operation.tex}
 
 \section{Materials and methods}
 To 
@@ -427,7 +344,6 @@ The preferred spelling of the word ``acknowledgment'' in America is without
 an ``e'' after the ``g''. Avoid the stilted expression ``one of us (R. B. 
 G.) thanks $\ldots$''. Instead, try ``R. B. G. thanks$\ldots$''. Put sponsor 
 acknowledgments in the unnumbered footnote on the first page.
-
 
 \bibliographystyle{./IEEEtran}
 \bibliography{./metroaerospace}
